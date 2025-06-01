@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Excel RAG Chatbot - Multi-File Enhanced</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .main-chat {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .file-upload:hover .file-upload-label {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: #f1f3f4;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input input:focus {
+            border-color: #667eea;
+        }
+
+        .chat-input button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .chat-input button:hover {
+            transform: translateY(-1px);
+        }
+
+        .chat-input button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sample-questions {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+        }
+
+        .sample-questions h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .sample-questions ul {
+            list-style: none;
+        }
+
+        .sample-questions li {
+            padding: 8px 0;
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .sample-questions li:hover {
+            color: #667eea;
+        }
+
+        .sample-questions li::before {
+            content: "• ";
+            color: #667eea;
+            margin-right: 8px;
+        }
+
+        .data-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 6px 8px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+            word-break: break-word;
+            max-width: 120px;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reset-btn, .process-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            margin: 5px 0;
+            transition: background 0.3s;
+        }
+
+        .reset-btn {
+            background: #dc3545;
+        }
+
+        .reset-btn:hover {
+            background: #c82333;
+        }
+
+        .process-btn:hover {
+            background: #218838;
+        }
+
+        .header-detection {
+            background: #e8f4f8;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .header-confidence {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .confidence-high {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .confidence-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .confidence-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Multi-file specific styles */
+        .file-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .file-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-item.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .file-item.processed {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .status-processing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .file-info {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .file-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-remove {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-remove:hover {
+            background: #c82333;
+        }
+
+        .btn-reprocess {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-reprocess:hover {
+            background: #e0a800;
+        }
+
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #138496;
+        }
+
+        .files-summary {
+            background: #e8f4f8;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .multi-file-indicator {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                height: auto;
+                min-height: calc(100vh - 40px);
+            }
+            
+            .sidebar {
+                order: 2;
+            }
+            
+            .main-chat {
+                order: 1;
+                min-height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="section">
+                <h3>📁 Multi-File Upload & Analysis</h3>
+                <div class="form-group">
+                    <label>Excel Files (.xlsx, .xls)</label>
+                    <div class="file-upload">
+                        <input type="file" id="excelFiles" accept=".xlsx,.xls" multiple>
+                        <label class="file-upload-label" for="excelFiles">
+                            📊 Choose Excel Files<br>
+                            <small>Click to browse (multiple files supported)</small>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="filesContainer"></div>
+                <div id="uploadStatus"></div>
+                <div id="debugInfo"></div>
+            </div>
+
+            <div class="section">
+                <h3>🔄 Actions</h3>
+                <button class="reset-btn" onclick="resetChat()">Reset Chat</button>
+                <button class="process-btn" onclick="clearAllFiles()" style="background: #6c757d;">Clear All Files</button>
+            </div>
+        </div>
+
+        <div class="main-chat">
+            <div class="header">
+                <h1>🎯 Smart Excel RAG Chatbot</h1>
+                <p>Multi-File Processing & Automatic Header Detection</p>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="sample-questions" id="sampleQuestions">
+                        <h3>📝 Sample Questions (Multi-File):</h3>
+                        <ul>
+                            <li onclick="askQuestion(this.textContent)">What is the Ren % Two Yr of 131871 - Md. Shafiqur Rahman?</li>
+                            <li onclick="askQuestion(this.textContent)">Tell me about Sl number 2 from any file</li>
+                            <li onclick="askQuestion(this.textContent)">What files do I have loaded?</li>
+                            <li onclick="askQuestion(this.textContent)">Show me all agent names across all files</li>
+                            <li onclick="askQuestion(this.textContent)">What is the average Total Premium across all files?</li>
+                            <li onclick="askQuestion(this.textContent)">Find Mohammad Zahedul Islam in any file</li>
+                            <li onclick="askQuestion(this.textContent)">Compare data between files</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Ask questions about any of your Excel files using agent names or Sl numbers..." disabled>
+                        <button onclick="sendMessage()" id="sendButton" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include external JavaScript files -->
+    <script type="module" src="assets/js/fileUpload.js"></script>
+    <script type="module" src="assets/js/chatbot.js"></script>
+    <script type="module" src="assets/js/utils.js"></script>
+    <script type="module" src="assets/js/headerDetection.js"></script>
+
+    <script>
+        // Multi-file data structure
+        let filesData = new Map(); // fileId -> { fileName, excelData, columnNames, rawData, headerRow, processed }
+        let isProcessing = false;
+        let chatHistory = [];
+        let lastMentionedPerson = null;
+        let fileIdCounter = 0;
+
+        document.getElementById('excelFiles').addEventListener('change', handleMultipleFileUpload);
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function handleMultipleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            showStatus('info', `📂 Processing ${files.length} Excel file(s)...`);
+            showDebugInfo(`Starting analysis of ${files.length} files...`);
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileId = ++fileIdCounter;
+                
+                try {
+                    showDebugInfo(`\n📊 Processing file ${i + 1}/${files.length}: ${file.name}`);
+                    await processIndividualFile(file, fileId);
+                } catch (error) {
+                    console.error(`Error processing file ${file.name}:`, error);
+                    showStatus('error', `❌ Error processing ${file.name}: ${error.message}`, true);
+                    showDebugInfo(`ERROR in ${file.name}: ${error.message}`);
+                }
+            }
+
+            updateFilesSummary();
+            enableChatIfReady();
+            
+            // Clear the file input so same files can be re-uploaded if needed
+            event.target.value = '';
+        }
+
+        async function processIndividualFile(file, fileId) {
+            const fileName = file.name;
+            
+            // Add file to container immediately
+            addFileToContainer(fileId, fileName, 'processing');
+
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                showDebugInfo(`${fileName}: Workbook loaded. Found ${workbook.SheetNames.length} sheets: ${workbook.SheetNames.join(', ')}`);
+                
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // Convert to array of arrays to analyze structure
+                const rawExcelData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                
+                showDebugInfo(`${fileName}: Raw data extracted. Found ${rawExcelData.length} rows.`);
+                
+                // Auto-detect header row
+                const headerResult = autoDetectHeaderRow(rawExcelData, fileName);
+                const detectedHeaderRow = headerResult.headerRow;
+                
+                if (detectedHeaderRow !== null) {
+                    showDebugInfo(`${fileName}: Auto-detected header row: ${detectedHeaderRow + 1} (Confidence: ${headerResult.confidence})`);
+                    
+                    // Process the data with detected header
+                    const processedData = await processFileData(rawExcelData, detectedHeaderRow, fileName);
+                    
+                    // Store file data
+                    filesData.set(fileId, {
+                        fileName: fileName,
+                        excelData: processedData.excelData,
+                        columnNames: processedData.columnNames,
+                        rawData: rawExcelData,
+                        headerRow: detectedHeaderRow,
+                        processed: true,
+                        confidence: headerResult.confidence,
+                        rowCount: processedData.excelData.length,
+                        columnCount: processedData.columnNames.length
+                    });
+                    
+                    updateFileStatus(fileId, 'ready');
+                    
+                    showDebugInfo(`${fileName}: Successfully processed - ${processedData.excelData.length} rows, ${processedData.columnNames.length} columns`);
+                    
+                } else {
+                    showDebugInfo(`${fileName}: Could not auto-detect header row`);
+                    updateFileStatus(fileId, 'error');
+                    
+                    // Store with error status but keep raw data for manual processing
+                    filesData.set(fileId, {
+                        fileName: fileName,
+                        excelData: null,
+                        columnNames: [],
+                        rawData: rawExcelData,
+                        headerRow: null,
+                        processed: false,
+                        error: 'Could not auto-detect header'
+                    });
+                }
+
+            } catch (error) {
+                showDebugInfo(`${fileName}: Processing error - ${error.message}`);
+                updateFileStatus(fileId, 'error');
+                throw error;
+            }
+        }
+
+        async function processFileData(rawExcelData, headerRowIndex, fileName) {
+            // Extract headers from the selected row
+            const originalHeaders = rawExcelData[headerRowIndex];
+            showDebugInfo(`${fileName}: Original headers: ${originalHeaders.join(', ')}`);
+            
+            // Clean headers but keep all non-empty ones
+            const filteredHeaders = originalHeaders.filter((header, index) => 
+                header !== null && header !== undefined && header !== '');
+            
+            showDebugInfo(`${fileName}: Filtered headers: ${filteredHeaders.join(', ')}`);
+            
+            if (filteredHeaders.length === 0) {
+                throw new Error('No valid headers found after filtering');
+            }
+            
+            // Get data rows (everything after header row)
+            const allDataRows = rawExcelData.slice(headerRowIndex + 1);
+            
+            // Filter data rows to remove completely empty rows
+            const dataRows = allDataRows.filter(row => 
+                row && row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+
+            showDebugInfo(`${fileName}: Filtered data rows: ${dataRows.length}`);
+
+            // Convert to objects with filtered headers
+            const excelData = dataRows.map((row, index) => {
+                const obj = { 
+                    _rowIndex: index,
+                    _fileName: fileName,
+                    _fileId: getFileIdByName(fileName)
+                };
+                
+                // Map each header to its corresponding cell value
+                filteredHeaders.forEach((header, colIndex) => {
+                    // Find the original index of this header
+                    const originalIndex = originalHeaders.indexOf(header);
+                    obj[header] = row[originalIndex] || '';
+                });
+                
+                return obj;
+            }).filter(obj => {
+                // Filter out completely empty rows
+                return Object.keys(obj).some(key => 
+                    !key.startsWith('_') && obj[key] && obj[key].toString().trim());
+            });
+
+            return {
+                excelData: excelData,
+                columnNames: filteredHeaders
+            };
+        }
+
+        function getFileIdByName(fileName) {
+            for (let [fileId, fileData] of filesData) {
+                if (fileData.fileName === fileName) {
+                    return fileId;
+                }
+            }
+            return null;
+        }
+
+        function autoDetectHeaderRow(data, fileName) {
+            showDebugInfo(`${fileName}: 🔍 Starting automatic header detection...`);
+            
+            if (!data || data.length < 4) {
+                showDebugInfo(`${fileName}: ❌ Not enough data rows for header detection`);
+                return { headerRow: null, confidence: 'none', details: 'Insufficient data' };
+            }
+
+            let bestHeaderRow = null;
+            let bestScore = 0;
+            let bestDetails = '';
+
+            // Check each potential header row (up to row 10 or half the data, whichever is smaller)
+            const maxRowsToCheck = Math.min(10, Math.floor(data.length / 2));
+            
+            for (let headerRowIndex = 0; headerRowIndex < maxRowsToCheck; headerRowIndex++) {
+                const headerRow = data[headerRowIndex];
+                
+                if (!headerRow || headerRow.length < 2) continue;
+                
+                showDebugInfo(`${fileName}: 🔎 Analyzing row ${headerRowIndex + 1} as potential header...`);
+                
+                // Check if we have at least 3 data rows after this potential header
+                if (headerRowIndex + 3 >= data.length) {
+                    showDebugInfo(`${fileName}: ❌ Not enough data rows after row ${headerRowIndex + 1}`);
+                    continue;
+                }
+                
+                const dataRows = data.slice(headerRowIndex + 1, headerRowIndex + 4); // Next 3 rows
+                const score = calculateHeaderScore(headerRow, dataRows, headerRowIndex, fileName);
+                
+                showDebugInfo(`${fileName}: 📊 Score for row ${headerRowIndex + 1}: ${score.total}`);
+                
+                if (score.total > bestScore) {
+                    bestScore = score.total;
+                    bestHeaderRow = headerRowIndex;
+                    bestDetails = `Score: ${score.total}, Headers: ${score.nonEmptyHeaders}, Consistency: ${score.consistentColumns}`;
+                }
+            }
+
+            let confidence = 'none';
+            if (bestScore >= 80) confidence = 'high';
+            else if (bestScore >= 60) confidence = 'medium';
+            else if (bestScore >= 40) confidence = 'low';
+
+            showDebugInfo(`${fileName}: 🎯 BEST HEADER DETECTION RESULT:`);
+            showDebugInfo(`${fileName}: - Best row: ${bestHeaderRow !== null ? bestHeaderRow + 1 : 'None'}`);
+            showDebugInfo(`${fileName}: - Best score: ${bestScore}`);
+            showDebugInfo(`${fileName}: - Confidence: ${confidence}`);
+
+            return {
+                headerRow: bestHeaderRow,
+                confidence: confidence,
+                score: bestScore,
+                details: bestDetails
+            };
+        }
+
+        function calculateHeaderScore(headerRow, dataRows, headerRowIndex, fileName) {
+            let score = {
+                nonEmptyHeaders: 0,
+                consistentColumns: 0,
+                dataPatternScore: 0,
+                headerQuality: 0,
+                total: 0
+            };
+
+            // Count non-empty headers
+            const nonEmptyHeaders = headerRow.filter(cell => 
+                cell !== null && cell !== undefined && cell !== '').length;
+            score.nonEmptyHeaders = Math.min(nonEmptyHeaders * 5, 30); // Max 30 points
+
+            if (nonEmptyHeaders < 2) {
+                score.total = 0;
+                return score;
+            }
+
+            // Check consistency across the 3 data rows
+            let consistentColumns = 0;
+            let totalValidColumns = 0;
+
+            for (let colIndex = 0; colIndex < headerRow.length; colIndex++) {
+                const headerCell = headerRow[colIndex];
+                
+                // Skip empty header columns
+                if (!headerCell || headerCell === '') continue;
+                
+                totalValidColumns++;
+                
+                // Check if this column has consistent data pattern in the 3 rows
+                let hasNonEmptyData = 0;
+                let hasEmptyData = 0;
+                
+                for (let dataRow of dataRows) {
+                    const dataCell = dataRow[colIndex];
+                    if (dataCell !== null && dataCell !== undefined && dataCell !== '') {
+                        hasNonEmptyData++;
+                    } else {
+                        hasEmptyData++;
+                    }
+                }
+
+                // The key criteria: column should have both non-empty AND empty values
+                if (hasNonEmptyData >= 1 && hasEmptyData >= 1) {
+                    consistentColumns++;
+                } else if (hasNonEmptyData === 3 && hasEmptyData === 0) {
+                    // All rows have data - this is also good but less points
+                    consistentColumns += 0.7;
+                }
+            }
+
+            score.consistentColumns = totalValidColumns > 0 ? 
+                Math.round((consistentColumns / totalValidColumns) * 40) : 0; // Max 40 points
+
+            // Header quality assessment
+            let headerQualityPoints = 0;
+            for (let header of headerRow) {
+                if (!header || header === '') continue;
+                
+                const headerStr = header.toString().toLowerCase();
+                
+                // Good header indicators
+                if (headerStr.includes('name') || headerStr.includes('id') || 
+                    headerStr.includes('sl') || headerStr.includes('no') ||
+                    headerStr.includes('amount') || headerStr.includes('premium') ||
+                    headerStr.includes('code') || headerStr.includes('type')) {
+                    headerQualityPoints += 2;
+                }
+                
+                // Avoid headers that look like data
+                if (!headerStr.match(/^\d+$/) && header.toString().length > 1) {
+                    headerQualityPoints += 1;
+                }
+            }
+            score.headerQuality = Math.min(headerQualityPoints, 20); // Max 20 points
+
+            // Bonus for being early in the file (headers are usually at the top)
+            const positionBonus = Math.max(10 - headerRowIndex * 2, 0); // Max 10 points
+            
+            score.total = score.nonEmptyHeaders + score.consistentColumns + 
+                         score.headerQuality + positionBonus;
+
+            return score;
+        }
+
+        function addFileToContainer(fileId, fileName, status) {
+            const container = document.getElementById('filesContainer');
+            
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.id = `file-${fileId}`;
+            
+            fileItem.innerHTML = `
+                <div class="file-header">
+                    <div class="file-name" title="${fileName}">${fileName}</div>
+                    <div class="file-status status-${status}" id="status-${fileId}">${status.toUpperCase()}</div>
+                </div>
+                <div class="file-info" id="info-${fileId}">Processing...</div>
+                <div class="file-actions" id="actions-${fileId}" style="display: none;">
+                    <button class="btn-view" onclick="viewFileData(${fileId})">View</button>
+                    <button class="btn-reprocess" onclick="reprocessFile(${fileId})">Reprocess</button>
+                    <button class="btn-remove" onclick="removeFile(${fileId})">Remove</button>
+                </div>
+            `;
+            
+            container.appendChild(fileItem);
+        }
+
+        function updateFileStatus(fileId, status) {
+            const statusElement = document.getElementById(`status-${fileId}`);
+            const infoElement = document.getElementById(`info-${fileId}`);
+            const actionsElement = document.getElementById(`actions-${fileId}`);
+            const fileItem = document.getElementById(`file-${fileId}`);
+            
+            if (statusElement) {
+                statusElement.className = `file-status status-${status}`;
+                statusElement.textContent = status.toUpperCase();
+            }
+            
+            const fileData = filesData.get(fileId);
+            if (fileData && infoElement) {
+                if (status === 'ready') {
+                    infoElement.textContent = `${fileData.rowCount} rows, ${fileData.columnCount} columns | Header: Row ${fileData.headerRow + 1} (${fileData.confidence})`;
+                    fileItem.className = 'file-item processed';
+                    actionsElement.style.display = 'flex';
+                } else if (status === 'error') {
+                    infoElement.textContent = fileData.error || 'Processing failed';
+                    fileItem.className = 'file-item';
+                    actionsElement.style.display = 'flex';
+                } else {
+                    infoElement.textContent = 'Processing...';
+                }
+            }
+        }
+
+        function updateFilesSummary() {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            const totalRows = processedFiles.reduce((sum, f) => sum + f.rowCount, 0);
+            const totalFiles = filesData.size;
+            
+            if (totalFiles > 0) {
+                showStatus('success', `📊 Summary: ${processedFiles.length}/${totalFiles} files processed successfully`, true);
+                showStatus('info', `📈 Total: ${totalRows} rows across ${processedFiles.length} files`, true);
+            }
+        }
+
+        function enableChatIfReady() {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            
+            if (processedFiles.length > 0) {
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                document.getElementById('sampleQuestions').style.display = 'none';
+
+                const filesInfo = processedFiles.map(f => 
+                    `📊 **${f.fileName}**: ${f.rowCount} rows, ${f.columnCount} columns`
+                ).join('\n');
+
+                addMessage('assistant', `🎉 Multi-file Excel processing completed!\n\n📁 **Loaded Files:**\n${filesInfo}\n\n✨ **Multi-File Features:**\n- 🤖 Automatic header detection for each file\n- 🔍 Search across all files simultaneously\n- 📊 Cross-file data analysis and comparison\n- 🎯 File-specific or global queries\n- 📈 Aggregate calculations across files\n\nI can now answer questions about any or all of your Excel files! Try asking about specific agents, comparing data between files, or getting summaries across all files.`);
+            }
+        }
+
+        function viewFileData(fileId) {
+            const fileData = filesData.get(fileId);
+            if (!fileData || !fileData.processed) return;
+            
+            const previewData = fileData.excelData.slice(0, 3);
+            let preview = `**${fileData.fileName}** (${fileData.rowCount} rows, ${fileData.columnCount} columns)\n\n`;
+            preview += `**Columns:** ${fileData.columnNames.join(', ')}\n\n`;
+            preview += `**Sample Data:**\n`;
+            
+            previewData.forEach((row, index) => {
+                preview += `**Row ${index + 1}:**\n`;
+                fileData.columnNames.slice(0, 4).forEach(col => {
+                    preview += `• ${col}: ${row[col] || 'N/A'}\n`;
+                });
+                preview += '\n';
+            });
+            
+            addMessage('assistant', preview);
+        }
+
+        function reprocessFile(fileId) {
+            // This would allow manual header selection in a full implementation
+            addMessage('assistant', `Reprocessing feature would allow manual header selection for file ID ${fileId}. Currently using automatic detection only.`);
+        }
+
+        function removeFile(fileId) {
+            filesData.delete(fileId);
+            const fileElement = document.getElementById(`file-${fileId}`);
+            if (fileElement) {
+                fileElement.remove();
+            }
+            updateFilesSummary();
+            
+            if (filesData.size === 0) {
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                document.getElementById('sampleQuestions').style.display = 'block';
+            }
+        }
+
+        function clearAllFiles() {
+            filesData.clear();
+            document.getElementById('filesContainer').innerHTML = '';
+            document.getElementById('uploadStatus').innerHTML = '';
+            document.getElementById('debugInfo').innerHTML = '';
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendButton').disabled = true;
+            document.getElementById('sampleQuestions').style.display = 'block';
+            resetChat();
+        }
+
+        function showStatus(type, message, append = false) {
+            const statusDiv = document.getElementById('uploadStatus');
+            const statusElement = document.createElement('div');
+            statusElement.className = `status ${type}`;
+            statusElement.textContent = message;
+            
+            if (!append) {
+                statusDiv.innerHTML = '';
+            }
+            statusDiv.appendChild(statusElement);
+        }
+
+        function showDebugInfo(message) {
+            const debugDiv = document.getElementById('debugInfo');
+            if (!debugDiv.querySelector('.debug-info')) {
+                debugDiv.innerHTML = '<div class="debug-info"></div>';
+            }
+            
+            const debugContent = debugDiv.querySelector('.debug-info');
+            debugContent.textContent += message + '\n';
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function askQuestion(question) {
+            document.getElementById('messageInput').value = question;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isProcessing) return;
+            
+            input.value = '';
+            addMessage('user', message);
+            
+            // Handle greetings
+            if (isGreeting(message)) {
+                const fileCount = Array.from(filesData.values()).filter(f => f.processed).length;
+                addMessage('assistant', `Hello! I can help you find information from your ${fileCount} Excel file(s). I can search across all files simultaneously or answer questions about specific files. What would you like to know?`);
+                return;
+            }
+            
+            if (filesData.size === 0) {
+                addMessage('assistant', 'Please upload Excel files first so I can answer questions about your data.');
+                return;
+            }
+            
+            isProcessing = true;
+            document.getElementById('sendButton').disabled = true;
+            
+            // Show typing indicator
+            const typingId = addMessage('assistant', '<div class="loading"></div>');
+            
+            try {
+                const response = await generateSmartResponse(message);
+                removeMessage(typingId);
+                addMessage('assistant', response);
+            } catch (error) {
+                removeMessage(typingId);
+                addMessage('assistant', `I apologize, but I encountered an error: ${error.message}`);
+            }
+            
+            isProcessing = false;
+            document.getElementById('sendButton').disabled = false;
+        }
+
+        function isGreeting(message) {
+            const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
+            const lowerMessage = message.toLowerCase().trim();
+            return greetings.some(greeting => lowerMessage === greeting || lowerMessage.startsWith(greeting + ' '));
+        }
+
+        async function generateSmartResponse(question) {
+            const questionLower = question.toLowerCase().trim();
+            const cleanQuestion = questionLower.replace(/[?!.,;]/g, '').trim();
+            
+            console.log('Processing multi-file question:', question);
+            
+            // Multi-file specific queries
+            if (cleanQuestion.includes('what files') || cleanQuestion.includes('which files') || 
+                cleanQuestion.includes('loaded files') || cleanQuestion.includes('file list')) {
+                return handleFilesListQuery();
+            }
+            
+            if (cleanQuestion.includes('across all files') || cleanQuestion.includes('all files') ||
+                cleanQuestion.includes('compare') && cleanQuestion.includes('files')) {
+                return handleCrossFileQuery(question);
+            }
+            
+            // Handle calculation/average queries across all files
+            if (cleanQuestion.includes('average') || cleanQuestion.includes('mean') || 
+                cleanQuestion.includes('calculate') || cleanQuestion.includes('sum') ||
+                cleanQuestion.includes('total of all') || cleanQuestion.includes('total of the')) {
+                return handleMultiFileAverageQuery(question);
+            }
+            
+            // Column names query across all files
+            if (cleanQuestion.includes('column') && (cleanQuestion.includes('name') || cleanQuestion.includes('header'))) {
+                return handleMultiFileColumnNamesQuery();
+            }
+            
+            // Count/summary queries across all files
+            if (cleanQuestion.includes('how many') || cleanQuestion.includes('count')) {
+                return handleMultiFileCountQuery();
+            }
+            
+            // Enhanced pattern matching for agent-specific queries across all files
+            // Pattern 1: "What is [column] of [agent name/number]"
+            let specificInfoMatch = cleanQuestion.match(/what\s+is\s+(?:the\s+)?(.+?)\s+of\s+(.+)/);
+            if (specificInfoMatch) {
+                const requestedColumn = specificInfoMatch[1].trim();
+                const targetIdentifier = specificInfoMatch[2].trim();
+                return handleMultiFileSpecificInfoQuery(requestedColumn, targetIdentifier);
+            }
+            
+            // Pattern 2: "What is [agent name/number]'s [column]"
+            let possessiveMatch = cleanQuestion.match(/what\s+is\s+(.+?)['']?s\s+(.+)/);
+            if (possessiveMatch) {
+                const targetIdentifier = possessiveMatch[1].trim();
+                const requestedColumn = possessiveMatch[2].trim();
+                return handleMultiFileSpecificInfoQuery(requestedColumn, targetIdentifier);
+            }
+            
+            // Pattern 3: "[agent name/number]'s [column]"
+            let simplePossessiveMatch = cleanQuestion.match(/(.+?)['']?s\s+(.+)/);
+            if (simplePossessiveMatch) {
+                const targetIdentifier = simplePossessiveMatch[1].trim();
+                const requestedColumn = simplePossessiveMatch[2].trim();
+                return handleMultiFileSpecificInfoQuery(requestedColumn, targetIdentifier);
+            }
+            
+            // Pattern 4: "[column] of [agent name/number]"
+            let columnOfMatch = cleanQuestion.match(/^(.+?)\s+of\s+(.+)$/);
+            if (columnOfMatch) {
+                const requestedColumn = columnOfMatch[1].trim();
+                const targetIdentifier = columnOfMatch[2].trim();
+                
+                // Skip if this looks like a calculation query
+                if (['average', 'mean', 'sum', 'total', 'all', 'the'].includes(targetIdentifier.toLowerCase())) {
+                    return handleMultiFileAverageQuery(question);
+                }
+                
+                return handleMultiFileSpecificInfoQuery(requestedColumn, targetIdentifier);
+            }
+            
+            // Pattern 5: "Tell me about [agent name/number]" or "Find [agent name/number]"
+            let aboutMatch = cleanQuestion.match(/(?:tell\s+me\s+about|about|find)\s+(.+)/);
+            if (aboutMatch) {
+                const targetIdentifier = aboutMatch[1].trim();
+                return handleMultiFilePersonInfoQuery(targetIdentifier);
+            }
+            
+            // Generic search across all files
+            return handleMultiFileGenericSearch(question);
+        }
+
+        function handleFilesListQuery() {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            
+            if (processedFiles.length === 0) {
+                return "No files are currently loaded and processed.";
+            }
+            
+            let response = `📁 **Loaded Files (${processedFiles.length}):**\n\n`;
+            
+            processedFiles.forEach((fileData, index) => {
+                response += `${index + 1}. **${fileData.fileName}**\n`;
+                response += `   • ${fileData.rowCount} rows, ${fileData.columnCount} columns\n`;
+                response += `   • Header: Row ${fileData.headerRow + 1} (${fileData.confidence} confidence)\n`;
+                response += `   • Columns: ${fileData.columnNames.slice(0, 5).join(', ')}${fileData.columnNames.length > 5 ? '...' : ''}\n\n`;
+            });
+            
+            const totalRows = processedFiles.reduce((sum, f) => sum + f.rowCount, 0);
+            response += `📊 **Total:** ${totalRows} rows across ${processedFiles.length} files`;
+            
+            return response;
+        }
+
+        function handleCrossFileQuery(question) {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            
+            if (processedFiles.length < 2) {
+                return "Cross-file comparison requires at least 2 processed files. Please upload more files.";
+            }
+            
+            let response = `🔍 **Cross-File Analysis:**\n\n`;
+            
+            // Find common columns across files
+            const allColumns = new Set();
+            const commonColumns = new Set();
+            
+            processedFiles.forEach((fileData, index) => {
+                if (index === 0) {
+                    fileData.columnNames.forEach(col => commonColumns.add(col));
+                } else {
+                    const currentColumns = new Set(fileData.columnNames);
+                    commonColumns.forEach(col => {
+                        if (!currentColumns.has(col)) {
+                            commonColumns.delete(col);
+                        }
+                    });
+                }
+                fileData.columnNames.forEach(col => allColumns.add(col));
+            });
+            
+            response += `**Common Columns (${commonColumns.size}):** ${Array.from(commonColumns).join(', ')}\n\n`;
+            response += `**All Unique Columns (${allColumns.size}):** ${Array.from(allColumns).slice(0, 10).join(', ')}${allColumns.size > 10 ? '...' : ''}\n\n`;
+            
+            // File comparison
+            processedFiles.forEach((fileData, index) => {
+                response += `**${fileData.fileName}:** ${fileData.rowCount} rows\n`;
+            });
+            
+            return response;
+        }
+
+        function findMatchingRecordInAllFiles(targetIdentifier) {
+            const cleanTarget = targetIdentifier.toLowerCase().trim();
+            const results = [];
+            
+            for (let [fileId, fileData] of filesData) {
+                if (!fileData.processed || !fileData.excelData) continue;
+                
+                const matchingRecord = fileData.excelData.find(row => {
+                    // Check Sl number first
+                    const slValue = row['Sl'];
+                    if (slValue) {
+                        const slStr = slValue.toString().toLowerCase().trim();
+                        if (slStr === cleanTarget || 
+                            cleanTarget === `sl ${slStr}` || 
+                            cleanTarget === `sl${slStr}` ||
+                            cleanTarget.match(new RegExp(`\\bsl\\s*${slStr}\\b`)) ||
+                            cleanTarget.match(new RegExp(`\\b${slStr}\\b`))) {
+                            return true;
+                        }
+                    }
+                    
+                    // Check Agent Name
+                    const agentName = row['Agent Name'];
+                    if (agentName) {
+                        const agentStr = agentName.toString().toLowerCase().trim();
+                        
+                        // Full name match
+                        if (agentStr.includes(cleanTarget) || cleanTarget.includes(agentStr)) {
+                            return true;
+                        }
+                        
+                        // Extract agent ID from agent name
+                        const agentIdMatch = agentStr.match(/^(\d+)/);
+                        if (agentIdMatch) {
+                            const agentId = agentIdMatch[1];
+                            if (cleanTarget.includes(agentId) || agentId === cleanTarget) {
+                                return true;
+                            }
+                        }
+                        
+                        // Name parts matching
+                        const nameParts = agentStr.split(/[\s\-,\.]+/).filter(part => part.length > 2);
+                        const targetParts = cleanTarget.split(/[\s\-,\.]+/).filter(part => part.length > 2);
+                        
+                        for (let targetPart of targetParts) {
+                            for (let namePart of nameParts) {
+                                if (namePart.includes(targetPart) || targetPart.includes(namePart)) {
+                                    if (targetPart.length > 3) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check other fields as fallback
+                    for (let key of Object.keys(row)) {
+                        if (key.startsWith('_')) continue;
+                        const value = row[key];
+                        if (value && value.toString().toLowerCase().includes(cleanTarget)) {
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                });
+                
+                if (matchingRecord) {
+                    results.push({
+                        record: matchingRecord,
+                        fileName: fileData.fileName,
+                        fileId: fileId
+                    });
+                }
+            }
+            
+            return results;
+        }
+
+        function findMatchingColumnInAllFiles(requestedColumn) {
+            const cleanColumn = requestedColumn.toLowerCase().trim();
+            const columnMatches = new Map(); // fileName -> matchedColumn
+            
+            for (let [fileId, fileData] of filesData) {
+                if (!fileData.processed || !fileData.columnNames) continue;
+                
+                // Direct exact match first
+                let matchingColumn = fileData.columnNames.find(col => 
+                    col.toLowerCase().trim() === cleanColumn);
+                
+                if (!matchingColumn) {
+                    // Partial match
+                    matchingColumn = fileData.columnNames.find(col => {
+                        const colLower = col.toLowerCase().trim();
+                        return colLower.includes(cleanColumn) || cleanColumn.includes(colLower);
+                    });
+                }
+                
+                if (!matchingColumn) {
+                    // Word-based matching
+                    const columnWords = cleanColumn.split(/\s+/).filter(word => word.length > 2);
+                    matchingColumn = fileData.columnNames.find(col => {
+                        const colLower = col.toLowerCase();
+                        return columnWords.some(word => colLower.includes(word));
+                    });
+                }
+                
+                if (matchingColumn) {
+                    columnMatches.set(fileData.fileName, matchingColumn);
+                }
+            }
+            
+            return columnMatches;
+        }
+
+        function handleMultiFileSpecificInfoQuery(requestedColumn, targetIdentifier) {
+            console.log(`Multi-file search: Looking for ${requestedColumn} of ${targetIdentifier}`);
+            
+            // Find matching columns across files
+            const columnMatches = findMatchingColumnInAllFiles(requestedColumn);
+            if (columnMatches.size === 0) {
+                const allColumns = new Set();
+                for (let [fileId, fileData] of filesData) {
+                    if (fileData.processed) {
+                        fileData.columnNames.forEach(col => allColumns.add(col));
+                    }
+                }
+                return `I couldn't find a column matching "${requestedColumn}" in any file. Available columns across all files:\n${Array.from(allColumns).join(', ')}`;
+            }
+            
+            // Find matching records across files
+            const matchingResults = findMatchingRecordInAllFiles(targetIdentifier);
+            if (matchingResults.length === 0) {
+                return `I couldn't find a record matching "${targetIdentifier}" in any file. Try using Sl numbers, agent IDs, or full agent names.`;
+            }
+            
+            // Show only the first matching record
+            const result = matchingResults[0];
+            const matchingColumn = columnMatches.get(result.fileName);
+            
+            if (matchingColumn) {
+                const value = result.record[matchingColumn];
+                const identifier = result.record['Agent Name'] || `Sl ${result.record['Sl']}`;
+                return `**From ${result.fileName}:**\nThe ${matchingColumn.toLowerCase()} of ${identifier} is: **${value || 'Not specified'}**`;
+            } else {
+                return `Found record in ${result.fileName}, but this file doesn't have the column "${requestedColumn}".`;
+            }
+        }
+
+        function handleMultiFilePersonInfoQuery(targetIdentifier) {
+            console.log(`Multi-file person search: Getting information about ${targetIdentifier}`);
+            
+            const matchingResults = findMatchingRecordInAllFiles(targetIdentifier);
+            if (matchingResults.length === 0) {
+                return `I couldn't find a record matching "${targetIdentifier}" in any file.`;
+            }
+            
+            // Show only the first matching record
+            const result = matchingResults[0];
+            const identifier = result.record['Agent Name'] || `Sl ${result.record['Sl']}`;
+            let response = `**From ${result.fileName}:**\n**${identifier}**\n`;
+            
+            Object.keys(result.record).forEach(key => {
+                if (!key.startsWith('_') && result.record[key] && result.record[key] !== '') {
+                    response += `• **${key}:** ${result.record[key]}\n`;
+                }
+            });
+            
+            return response;
+        }
+
+        function handleMultiFileAverageQuery(question) {
+            const questionLower = question.toLowerCase().trim();
+            const cleanQuestion = questionLower.replace(/[?!.,;]/g, '').trim();
+            
+            console.log('Handling multi-file average query:', cleanQuestion);
+            
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            if (processedFiles.length === 0) {
+                return "No processed files available for calculations.";
+            }
+            
+            // Find target column mentioned in question
+            let targetColumn = null;
+            const allColumns = new Set();
+            
+            for (let fileData of processedFiles) {
+                fileData.columnNames.forEach(col => {
+                    allColumns.add(col);
+                    if (cleanQuestion.includes(col.toLowerCase())) {
+                        targetColumn = col;
+                    }
+                });
+            }
+            
+            if (!targetColumn) {
+                return `Please specify which column to calculate. Available columns across all files:\n${Array.from(allColumns).join(', ')}`;
+            }
+            
+            // Collect all numeric values for the target column across all files
+            let allValues = [];
+            let fileBreakdown = [];
+            
+            for (let fileData of processedFiles) {
+                if (!fileData.columnNames.includes(targetColumn)) continue;
+                
+                const values = fileData.excelData.map(row => {
+                    const val = row[targetColumn];
+                    if (!val || val === '') return NaN;
+                    const cleanVal = val.toString().replace(/,/g, '');
+                    return parseFloat(cleanVal);
+                }).filter(v => !isNaN(v));
+                
+                if (values.length > 0) {
+                    allValues = allValues.concat(values);
+                    const sum = values.reduce((a, b) => a + b, 0);
+                    const avg = sum / values.length;
+                    
+                    fileBreakdown.push({
+                        fileName: fileData.fileName,
+                        count: values.length,
+                        sum: sum,
+                        average: avg,
+                        min: Math.min(...values),
+                        max: Math.max(...values)
+                    });
+                }
+            }
+            
+            if (allValues.length === 0) {
+                return `No valid numeric data found for column "${targetColumn}" across all files.`;
+            }
+            
+            const totalSum = allValues.reduce((a, b) => a + b, 0);
+            const overallAverage = totalSum / allValues.length;
+            const overallMin = Math.min(...allValues);
+            const overallMax = Math.max(...allValues);
+            
+            let response = '';
+            
+            if (cleanQuestion.includes('sum') || cleanQuestion.includes('total')) {
+                response = `**Total/Sum of ${targetColumn} across all files:** ${totalSum.toLocaleString()}\n\n`;
+            } else {
+                response = `**Average ${targetColumn} across all files:** ${overallAverage.toFixed(2)}\n\n`;
+            }
+            
+            response += `**Overall Summary:**\n`;
+            response += `• Total Records: ${allValues.length}\n`;
+            response += `• Total Sum: ${totalSum.toLocaleString()}\n`;
+            response += `• Range: ${overallMin.toLocaleString()} - ${overallMax.toLocaleString()}\n\n`;
+            
+            response += `**Breakdown by File:**\n`;
+            fileBreakdown.forEach(breakdown => {
+                response += `**${breakdown.fileName}:**\n`;
+                response += `  • Records: ${breakdown.count}\n`;
+                response += `  • Average: ${breakdown.average.toFixed(2)}\n`;
+                response += `  • Sum: ${breakdown.sum.toLocaleString()}\n`;
+                response += `  • Range: ${breakdown.min.toLocaleString()} - ${breakdown.max.toLocaleString()}\n\n`;
+            });
+            
+            return response;
+        }
+
+        function handleMultiFileColumnNamesQuery() {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            
+            if (processedFiles.length === 0) {
+                return "No processed files available.";
+            }
+            
+            let response = `📋 **Column Names Across All Files:**\n\n`;
+            
+            processedFiles.forEach((fileData, index) => {
+                response += `**${index + 1}. ${fileData.fileName}** (${fileData.columnNames.length} columns):\n`;
+                fileData.columnNames.forEach((col, colIndex) => {
+                    response += `   ${colIndex + 1}. ${col}\n`;
+                });
+                response += '\n';
+            });
+            
+            // Show common columns
+            const allColumns = new Set();
+            const commonColumns = new Set();
+            
+            processedFiles.forEach((fileData, index) => {
+                if (index === 0) {
+                    fileData.columnNames.forEach(col => commonColumns.add(col));
+                } else {
+                    const currentColumns = new Set(fileData.columnNames);
+                    commonColumns.forEach(col => {
+                        if (!currentColumns.has(col)) {
+                            commonColumns.delete(col);
+                        }
+                    });
+                }
+                fileData.columnNames.forEach(col => allColumns.add(col));
+            });
+            
+            response += `📊 **Summary:**\n`;
+            response += `• Common columns across all files (${commonColumns.size}): ${Array.from(commonColumns).join(', ')}\n`;
+            response += `• Total unique columns (${allColumns.size}): ${Array.from(allColumns).slice(0, 10).join(', ')}${allColumns.size > 10 ? '...' : ''}`;
+            
+            return response;
+        }
+
+        function handleMultiFileCountQuery() {
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            const totalRows = processedFiles.reduce((sum, f) => sum + f.rowCount, 0);
+            const totalFiles = filesData.size;
+            const processedCount = processedFiles.length;
+            
+            let response = `📊 **Multi-File Data Summary:**\n\n`;
+            
+            response += `**Files:**\n`;
+            response += `• Total files uploaded: ${totalFiles}\n`;
+            response += `• Successfully processed: ${processedCount}\n`;
+            response += `• Failed/pending: ${totalFiles - processedCount}\n\n`;
+            
+            response += `**Data:**\n`;
+            response += `• Total records across all files: ${totalRows}\n\n`;
+            
+            response += `**Breakdown by File:**\n`;
+            processedFiles.forEach((fileData, index) => {
+                response += `${index + 1}. **${fileData.fileName}**: ${fileData.rowCount} rows, ${fileData.columnCount} columns\n`;
+            });
+            
+            return response;
+        }
+
+        function handleMultiFileGenericSearch(question) {
+            const cleanQuestion = question.toLowerCase().replace(/[?!.,;]/g, '').trim();
+            console.log('Multi-file generic search for:', cleanQuestion);
+            
+            const results = [];
+            
+            // Search across all files
+            for (let [fileId, fileData] of filesData) {
+                if (!fileData.processed || !fileData.excelData) continue;
+                
+                const mentionedRecord = fileData.excelData.find(row => {
+                    const questionWords = cleanQuestion.split(/\s+/);
+                    
+                    for (let qWord of questionWords) {
+                        if (qWord.length < 3) continue;
+                        
+                        for (let key of Object.keys(row)) {
+                            if (key.startsWith('_')) continue;
+                            
+                            const value = row[key];
+                            if (value && value.toString().toLowerCase().includes(qWord)) {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    return false;
+                });
+                
+                if (mentionedRecord) {
+                    results.push({
+                        record: mentionedRecord,
+                        fileName: fileData.fileName,
+                        fileId: fileId
+                    });
+                }
+            }
+            
+            if (results.length > 0) {
+                let response = `Found ${results.length} matching record(s):\n\n`;
+                
+                results.forEach((result, index) => {
+                    const identifier = result.record['Agent Name'] || `Sl ${result.record['Sl']}`;
+                    response += `**${index + 1}. From ${result.fileName}:**\n`;
+                    response += `**${identifier}**\n`;
+                    
+                    // Show first few relevant fields
+                    const relevantFields = Object.keys(result.record).filter(key => 
+                        !key.startsWith('_') && result.record[key] && result.record[key] !== ''
+                    ).slice(0, 5);
+                    
+                    relevantFields.forEach(key => {
+                        response += `• **${key}:** ${result.record[key]}\n`;
+                    });
+                    response += '\n';
+                });
+                
+                return response;
+            }
+            
+            // If no specific record found, provide helpful suggestions
+            const processedFiles = Array.from(filesData.values()).filter(f => f.processed);
+            if (processedFiles.length === 0) {
+                return `No processed files available. Please upload Excel files first.`;
+            }
+            
+            const sampleSuggestions = [];
+            processedFiles.slice(0, 2).forEach(fileData => {
+                const sampleRecord = fileData.excelData[0];
+                if (sampleRecord) {
+                    const sl = sampleRecord['Sl'] || 'N/A';
+                    const agent = sampleRecord['Agent Name'] || 'Unknown';
+                    sampleSuggestions.push(`• "What is the Total Premium of ${agent}?" (from ${fileData.fileName})`);
+                    sampleSuggestions.push(`• "Tell me about Sl ${sl}" (from ${fileData.fileName})`);
+                }
+            });
+            
+            return `I couldn't find specific information for "${question}" across your files.\n\n**Try asking questions like:**\n${sampleSuggestions.join('\n')}\n\n**Or ask about:**\n• "What files do I have loaded?"\n• "Show me all agent names across all files"\n• "Average calculations across all files"\n• "Compare data between files"`;
+        }
+
+        function addMessage(role, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            const messageId = 'msg_' + Date.now();
+            
+            messageDiv.className = `message ${role}`;
+            messageDiv.id = messageId;
+            messageDiv.innerHTML = `
+                <div class="message-content">${content}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            return messageId;
+        }
+
+        function removeMessage(messageId) {
+            const message = document.getElementById(messageId);
+            if (message) {
+                message.remove();
+            }
+        }
+
+        function resetChat() {
+            const hasFiles = Array.from(filesData.values()).some(f => f.processed);
+            
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="sample-questions" id="sampleQuestions">
+                    <h3>📝 Sample Questions (Multi-File):</h3>
+                    <ul>
+                        <li onclick="askQuestion(this.textContent)">What is the Ren % Two Yr of 131871 - Md. Shafiqur Rahman?</li>
+                        <li onclick="askQuestion(this.textContent)">Tell me about Sl number 2 from any file</li>
+                        <li onclick="askQuestion(this.textContent)">What files do I have loaded?</li>
+                        <li onclick="askQuestion(this.textContent)">Show me all agent names across all files</li>
+                        <li onclick="askQuestion(this.textContent)">What is the average Total Premium across all files?</li>
+                        <li onclick="askQuestion(this.textContent)">Find Mohammad Zahedul Islam in any file</li>
+                        <li onclick="askQuestion(this.textContent)">Compare data between files</li>
+                    </ul>
+                </div>
+            `;
+            chatHistory = [];
+            lastMentionedPerson = null;
+            
+            if (!hasFiles) {
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                document.getElementById('sampleQuestions').style.display = 'block';
+            } else {
+                document.getElementById('sampleQuestions').style.display = 'none';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Enhanced Smart Excel RAG Chatbot with Multi-File Support initialized');
+        });
+    </script>
+</body>
+</html>
